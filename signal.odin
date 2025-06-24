@@ -1,5 +1,7 @@
 package signals
 
+import "core:fmt"
+
 Signal_Id :: int
 
 Signal :: struct($C, $S, $T: typeid) {
@@ -7,28 +9,33 @@ Signal :: struct($C, $S, $T: typeid) {
 	_last_id:  Signal_Id,
 }
 
-init_empty :: proc() -> Signal(any, any, any) {
+init_empty :: proc() -> ^Signal(any, any, any) {
 	return init_with_ctx_and_sender_and_value(any, any, any)
 }
 
-init_with_sender :: proc($S: typeid) -> Signal(any, S, any) {
+init_with_sender :: proc($S: typeid) -> ^Signal(any, S, any) {
 	return init_with_ctx_and_sender_and_value(any, S, any)
 }
 
-init_with_ctx_and_value :: proc($C, $T: typeid) -> Signal(C, any, T) {
+init_with_ctx_and_value :: proc($C, $T: typeid) -> ^Signal(C, any, T) {
 	return init_with_ctx_and_sender_and_value(C, any, T)
 }
 
-init_with_ctx_and_sender :: proc($C, $S: typeid) -> Signal(C, S, any) {
+init_with_ctx_and_sender :: proc($C, $S: typeid) -> ^Signal(C, S, any) {
 	return init_with_ctx_and_sender_and_value(C, S, any)
 }
 
-init_with_sender_and_value :: proc($S, $T: typeid) -> Signal(any, S, T) {
+init_with_sender_and_value :: proc($S, $T: typeid) -> ^Signal(any, S, T) {
 	return init_with_ctx_and_sender_and_value(any, S, T)
 }
 
-init_with_ctx_and_sender_and_value :: proc($C, $S, $T: typeid) -> Signal(C, S, T) {
-	return Signal(C, S, T){listeners = make(map[int]Signal_Listener(C, S, T)), _last_id = 0}
+init_with_ctx_and_sender_and_value :: proc($C, $S, $T: typeid) -> ^Signal(C, S, T) {
+	self := new(Signal(C, S, T))
+	self.listeners = make(map[Signal_Id]Signal_Listener(C, S, T))
+	self._last_id = 0
+	return self
+
+	// return Signal(C, S, T){listeners = make(map[int]Signal_Listener(C, S, T)), _last_id = 0}
 }
 
 init :: proc {
@@ -39,6 +46,7 @@ init :: proc {
 
 deinit :: proc(self: ^Signal($C, $S, $T)) {
 	delete(self.listeners)
+	free(self)
 }
 
 emit :: proc(self: ^Signal($C, $S, $T), sender: S, value: T) {
