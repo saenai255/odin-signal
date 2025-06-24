@@ -13,10 +13,10 @@ single_signal_test :: proc(t: ^testing.T) {
 	ctx := Ctx{t, 0, false}
 
 
-	sig := init(bool, ^Ctx, rawptr)
+	sig := init(bool, rawptr, ^Ctx)
 	defer deinit(sig)
 
-	connect(sig, &ctx, proc(payload: Signal_Payload(bool, ^Ctx, rawptr)) {
+	connect(sig, &ctx, proc(payload: Signal_Payload(bool, rawptr, ^Ctx)) {
 		testing.expect_value(payload.ctx.t, payload.value, payload.ctx.expected_value)
 		payload.ctx.calls += 1
 	})
@@ -40,27 +40,27 @@ chained_signals_test :: proc(t: ^testing.T) {
 		sig1_calls: int,
 		sig2_calls: int,
 		sig3_calls: int,
-		sig1:       ^Signal(int, ^Ctx, rawptr),
-		sig2:       ^Signal(int, ^Ctx, rawptr),
-		sig3:       ^Signal(int, ^Ctx, rawptr),
+		sig1:       ^Signal(int, rawptr, ^Ctx),
+		sig2:       ^Signal(int, rawptr, ^Ctx),
+		sig3:       ^Signal(int, rawptr, ^Ctx),
 	}
 
 	ctx: Ctx
 	ctx.t = t
 
-	sig := init(int, ^Ctx, rawptr)
+	sig := init(int, rawptr, ^Ctx)
 	defer deinit(sig)
 	ctx.sig1 = sig
 
-	sig2 := init(int, ^Ctx, rawptr)
+	sig2 := init(int, rawptr, ^Ctx)
 	defer deinit(sig2)
 	ctx.sig2 = sig2
 
-	sig3 := init(int, ^Ctx, rawptr)
+	sig3 := init(int, rawptr, ^Ctx)
 	defer deinit(sig3)
 	ctx.sig3 = sig3
 
-	connect(sig, &ctx, proc(payload: Signal_Payload(int, ^Ctx, rawptr)) {
+	connect(sig, &ctx, proc(payload: Signal_Payload(int, rawptr, ^Ctx)) {
 		payload.ctx.sig1_calls += 1
 
 		testing.expect_value(payload.ctx.t, payload.sender, nil)
@@ -68,20 +68,20 @@ chained_signals_test :: proc(t: ^testing.T) {
 		emit(payload.ctx.sig2, payload.ctx.sig1, payload.value * 2)
 	})
 
-	connect(sig2, &ctx, proc(payload: Signal_Payload(int, ^Ctx, rawptr)) {
+	connect(sig2, &ctx, proc(payload: Signal_Payload(int, rawptr, ^Ctx)) {
 		payload.ctx.sig2_calls += 1
 
-		sender := cast(^Signal(int, ^Ctx, rawptr))payload.sender
+		sender := cast(^Signal(int, rawptr, ^Ctx))payload.sender
 		testing.expect_value(payload.ctx.t, sender, payload.ctx.sig1)
 
 		emit(payload.ctx.sig3, payload.ctx.sig2, payload.value * 2)
 	})
 
-	connect(sig3, &ctx, proc(payload: Signal_Payload(int, ^Ctx, rawptr)) {
+	connect(sig3, &ctx, proc(payload: Signal_Payload(int, rawptr, ^Ctx)) {
 		payload.ctx.sig3_calls += 1
 		payload.ctx.result = payload.value * 2
 
-		sender := cast(^Signal(int, ^Ctx, rawptr))payload.sender
+		sender := cast(^Signal(int, rawptr, ^Ctx))payload.sender
 		testing.expect_value(payload.ctx.t, sender, payload.ctx.sig2)
 	})
 
