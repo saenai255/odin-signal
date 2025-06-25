@@ -4,30 +4,42 @@ import "core:fmt"
 
 Signal_Id :: int
 
-Signal :: struct($T, $S, $C: typeid) {
-	listeners: map[int](Signal_Listener(T, S, C)),
+Signal :: struct($T, $C: typeid) {
+	listeners: map[int](Signal_Listener(T, C)),
 	_last_id:  Signal_Id,
 }
 
+init_with_value :: proc($T: typeid) -> ^Signal(T, rawptr) {
+	return init_with_value_and_ctx(T, rawptr)
+}
 
-init :: proc($T, $S, $C: typeid) -> ^Signal(T, S, C) {
-	self := new(Signal(T, S, C))
-	self.listeners = make(map[Signal_Id]Signal_Listener(T, S, C))
+init_with_value_and_ctx :: proc($T, $C: typeid) -> ^Signal(T, C) {
+	self := new(Signal(T, C))
+	self.listeners = make(map[Signal_Id]Signal_Listener(T, C))
 	self._last_id = 0
 	return self
 }
 
-deinit :: proc(self: ^Signal($T, $S, $C)) {
-	delete(self.listeners)
-	free(self)
+init :: proc {
+	init_with_value,
+	init_with_value_and_ctx,
 }
 
-emit :: proc(self: ^Signal($T, $S, $C), sender: S, value: T) {
+deinit :: proc(self: ^Signal($T, $C)) {
+	for id in self.listeners {
+		disconnect(self, id)
+	}
+
+	delete(self.listeners)
+	free(self)
+	fmt.println("deinit called")
+}
+
+emit :: proc(self: ^Signal($T, $C), value: T) {
 	for _, listener in self.listeners {
 		listener.emit_fn(
-			Signal_Payload(T, S, C) {
+			Signal_Payload(T, C) {
 				id = listener.id,
-				sender = sender,
 				signal = self,
 				ctx = listener.ctx,
 				value = value,
@@ -36,15 +48,25 @@ emit :: proc(self: ^Signal($T, $S, $C), sender: S, value: T) {
 	}
 }
 
-connect :: proc(
-	self: ^Signal($T, $S, $C),
+connect_simple :: proc(
+	self: ^Signal($T, $C),
 	ctx: C,
-	fn: proc(payload: Signal_Payload(T, S, C)),
+	fn: proc(payload: Signal_Payload(T, C)),
 ) -> Signal_Id {
-	signal_listener := Signal_Listener(T, S, C) {
+	return connect_with_cleanup(self, ctx, fn, nil)
+}
+
+connect_with_cleanup :: proc(
+	self: ^Signal($T, $C),
+	ctx: C,
+	fn: proc(payload: Signal_Payload(T, C)),
+	cleanup: proc(ctx: C),
+) -> Signal_Id {
+	signal_listener := Signal_Listener(T, C) {
 		ctx     = ctx,
 		emit_fn = fn,
 		id      = self._last_id + 1,
+		cleanup = cleanup,
 	}
 
 	self._last_id += 1
@@ -54,8 +76,17 @@ connect :: proc(
 	return signal_listener.id
 }
 
-disconnect :: proc(self: ^Signal($T, $S, $C), id: Signal_Id) {
+connect :: proc {
+	connect_simple,
+	connect_with_cleanup,
+}
+
+disconnect :: proc(self: ^Signal($T, $C), id: Signal_Id) {
 	if id in self.listeners {
+		listener := self.listeners[id]
+		if listener.cleanup != nil {
+			listener.cleanup(listener.ctx)
+		}
 		delete_key(&self.listeners, id)
 	}
 }
