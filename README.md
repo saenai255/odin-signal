@@ -227,4 +227,4 @@ This implementation is **not thread-safe**. If you need thread-safe signals, you
 
 ## License
 
-[MIT](https://opensource.org/licenses/MIT)
+[MIT](./LICENSE)
